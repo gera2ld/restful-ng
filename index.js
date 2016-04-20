@@ -17,7 +17,8 @@ angular.module('restful-ng', [])
   };
   this.$get = [
     '$http',
-    function ($http) {
+    '$q',
+    function ($http, $q) {
 
 // ************** Module start **************
 
@@ -68,6 +69,16 @@ Restful.prototype = {
       _this.setHeader(key, value);
     });
   },
+  processHandlers: function (handlers, value, cb) {
+    if (!cb) cb = function (value, handler) {
+      return handler(value);
+    };
+    return handlers.reduce(function (promise, handler) {
+      return promise.then(function (value) {
+        return cb(value, handler);
+      });
+    }, $q.resolve(value));
+  },
   prepareRequest: function (options) {
     var _this = this;
     var request = {
@@ -77,22 +88,24 @@ Restful.prototype = {
       data: options.body,
       params: options.params,
     };
-    return _this.prehandlers.reduce(function (request, handler) {
-      return _.assign({}, request, handler(request));
-    }, request);
+    return _this.processHandlers(
+      _this.prehandlers, request,
+      function (request, handler) {
+        return _.assign({}, request, handler(request));
+      }
+    );
   },
   _request: function (options) {
     var _this = this;
-    var request = _this.prepareRequest(options);
-    return $http(request)
+    return _this.prepareRequest(options)
+    .then(function (request) {
+      return $http(request);
+    })
     .then(function (res) {
-      return _this.posthandlers.reduce(function (res, handler) {
-        return handler(res);
-      }, res);
-    }, function (res) {
-      return _this.errhandlers.reduce(function (res, handler) {
-        return handler(res);
-      }, res);
+      return _this.processHandlers(_this.posthandlers, res);
+    })
+    .catch(function (res) {
+      return _this.processHandlers(_this.errhandlers, res);
     });
   },
 };
@@ -107,20 +120,23 @@ function Model(restful, path) {
 Model.prototype = {
   request: function (options) {
     var _this = this;
-    options = _this.prehandlers.reduce(function (options, handler) {
-      return _.assign({}, options, handler(options));
-    }, options);
-    var url = options.url || '';
-    // Skip absolute paths
-    if (!/^[\w-]+:/.test(url)) {
-      if (url && url[0] !== '/') url = '/' + url;
-      options.url = _this.path + url;
-    }
-    return _this.restful._request(options)
+    return _this.restful.processHandlers(
+      _this.prehandlers, options,
+      function (options, handler) {
+        return _.assign({}, options, handler(options));
+      }
+    )
+    .then(function (options) {
+      var url = options.url || '';
+      // Skip absolute paths
+      if (!/^[\w-]+:/.test(url)) {
+        if (url && url[0] !== '/') url = '/' + url;
+        options.url = _this.path + url;
+      }
+      return _this.restful._request(options)
+    })
     .then(function (res) {
-      return _this.posthandlers.reduce(function (res, handler) {
-        return handler(res);
-      }, res);
+      return _this.restful.processHandlers(_this.posthandlers, res);
     });
   },
   get: function (url, params) {
