@@ -1,0 +1,24 @@
+{
+  "name": "restful-ng",
+  "version": "0.0.0",
+  "description": "RESTful service for Angular 1.x",
+  "main": "index.js",
+  "scripts": {
+    "version": "node scripts/update_bower.js && git add bower.json"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/gera2ld/restful-ng.git"
+  },
+  "keywords": [
+    "restful",
+    "rest",
+    "angular"
+  ],
+  "author": "Gerald <i@gerald.top>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/gera2ld/restful-ng/issues"
+  },
+  "homepage": "https://github.com/gera2ld/restful-ng#readme"
+}
