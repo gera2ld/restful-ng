@@ -111,7 +111,11 @@ Model.prototype = {
       return _.assign({}, options, handler(options));
     }, options);
     var url = options.url || '';
-    if (!url || url[0] === '/') options.url = _this.path + url;
+    // Skip absolute paths
+    if (!/^[\w-]+:/.test(url)) {
+      if (url && url[0] !== '/') url = '/' + url;
+      options.url = _this.path + url;
+    }
     return _this.restful._request(options)
     .then(function (res) {
       return _this.posthandlers.reduce(function (res, handler) {
