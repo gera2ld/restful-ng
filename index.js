@@ -79,7 +79,7 @@ Restful.prototype = {
       });
     }, $q.resolve(value));
   },
-  prepareRequest: function (options) {
+  prepareRequest: function (options, overrides) {
     var _this = this;
     var request = {
       url: options.url,
@@ -89,23 +89,23 @@ Restful.prototype = {
       params: options.params,
     };
     return _this.processHandlers(
-      _this.prehandlers, request,
+      overrides.prehandlers || _this.prehandlers, request,
       function (request, handler) {
         return _.assign({}, request, handler(request));
       }
     );
   },
-  _request: function (options) {
+  _request: function (options, overrides) {
     var _this = this;
-    return _this.prepareRequest(options)
+    return _this.prepareRequest(options, overrides)
     .then(function (request) {
       return $http(request);
     })
     .then(function (res) {
-      return _this.processHandlers(_this.posthandlers, res);
+      return _this.processHandlers(overrides.posthandlers || _this.posthandlers, res);
     })
     .catch(function (res) {
-      return _this.processHandlers(_this.errhandlers, res);
+      return _this.processHandlers(overrides.errhandlers || _this.errhandlers, res);
     });
   },
 };
@@ -116,6 +116,7 @@ function Model(restful, path) {
   _this.path = path || '';
   _this.prehandlers = [];
   _this.posthandlers = [];
+  _this.overrides = {};
 }
 Model.prototype = {
   request: function (options) {
@@ -133,7 +134,7 @@ Model.prototype = {
         if (url && url[0] !== '/') url = '/' + url;
         options.url = _this.path + url;
       }
-      return _this.restful._request(options)
+      return _this.restful._request(options, _this.overrides);
     })
     .then(function (res) {
       return _this.restful.processHandlers(_this.posthandlers, res);

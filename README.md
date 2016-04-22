@@ -36,10 +36,31 @@ angular.module('app', ['restful-ng'])
       console.log(data);
     });
 
+    // Models
     var myCar = RestfulNg.model('cars/1');
+
+    // Interceptors
+    myCar.posthandlers.push(function (data) {
+      data.intercepted = true;
+      return data;
+    });
+
     myCar.get().then(function (data) {
       console.log(data);
+    });
+
+    // Submodels
+    var licence = myCar.model('licence');
+
+    // Override global interceptors
+    licence.overrides.posthandlers = [function (res) {
+      return res.data;
+    }];
+    licence.get().then(function (text) {
+      console.log(text);
     });
   }
 ]);
 ```
+
+For more usage, see documents of [restful-fetch](https://github.com/gera2ld/restful-fetch).
