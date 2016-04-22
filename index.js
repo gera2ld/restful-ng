@@ -169,12 +169,14 @@ Model.prototype = {
       params: params,
     });
   },
-  model: function (path) {
-    path = (path || '').replace(/\/$/, '');
-    if (!path) {
-      throw new Error('Invalid path: path cannot be empty!');
-    }
-    if (path[0] !== '/') path = '/' + path;
+  model: function () {
+    var path = [].slice.call(arguments)
+    .map(function (path) {
+      return path.replace(/^\/|\/$/g, '');
+    }).filter(function (path) {
+      return path;
+    }).join('/');
+    if (path) path = '/' + path;
     return new Model(this.restful, this.path + path);
   },
 };
