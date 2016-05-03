@@ -173,7 +173,7 @@ Model.prototype = {
   model: function () {
     var path = [].slice.call(arguments)
     .map(function (path) {
-      return path.replace(/^\/|\/$/g, '');
+      return (path || '').replace(/^\/|\/$/g, '');
     }).filter(function (path) {
       return path;
     }).join('/');
