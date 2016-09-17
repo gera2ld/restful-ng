@@ -1,9 +1,12 @@
 /**
- * @desc This is a RESTful service for Angular 1.x
- * @author Gerald <i@gerald.top>
+ * @desc    RESTful service for Angular 1.x
+ * @author  Gerald <i@gerald.top>
  */
+!function () {
 angular.module('restful-ng', [])
-.provider('RestfulNg', function () {
+.provider('RestfulNg', RestfulNgProvider);
+
+function RestfulNgProvider() {
   var options = {
     root: '',
     headers: {},
@@ -12,65 +15,191 @@ angular.module('restful-ng', [])
     errhandlers: [function (res) {throw res;}],
     presets: [],
   };
-  this.config = function (_options) {
-    _.assign(options, _options);
+  this.config = function (userOptions) {
+    Object.assign(options, userOptions);
   };
   this.$get = [
     '$http',
     '$q',
     function ($http, $q) {
+      return initRestful($http, $q)(options);
+    },
+  ];
+}
 
-// ************** Module start **************
+function initRestful($http, $q) {
+'use strict';
+
+function _interopDefault (ex) { return (ex && (typeof ex === 'object') && 'default' in ex) ? ex['default'] : ex; }
+
+var RE_SLASHES = /^\/|\/$/g;
+var RE_ABSURL = /^[\w-]+:/;
+var RE_PLACEHOLDER = /\/:([^/]*)/g;
+
+function Model(restful, path) {
+  if (!(this instanceof Model)) return new Model(restful, path);
+  this.restful = restful;
+  this.prehandlers = [];
+  this.posthandlers = [];
+  this.overrides = null;
+  this.parameters = null;
+  this._setPath(path);
+}
+Object.assign(Model.prototype, {
+  _setPath: function _setPath(path) {
+    var _this = this;
+
+    if (path) {
+      path = path.replace(RE_SLASHES, '').split('/').filter(function (c) {
+        return c;
+      }).map(function (comp) {
+        if (!comp) {
+          throw new Error('Invalid path!');
+        }
+        if (comp[0] === ':') {
+          _this._addParam(comp.slice(1));
+        }
+        return comp;
+      }).join('/');
+      if (path) path = '/' + path;
+    }
+    this.path = path || '';
+  },
+  _addParam: function _addParam(name) {
+    var parameters = this.parameters = this.parameters || {};
+    if (parameters[name]) {
+      throw new Error('Invalid path: parameter "' + name + '" already exists!');
+    }
+    parameters[name] = true;
+  },
+  request: function request(options) {
+    var _this2 = this;
+
+    if (this.parameters) {
+      throw new Error('Abstract model cannot be requested!');
+    }
+    return this.restful._processHandlers(this.prehandlers, options, function (options, handler) {
+      return Object.assign({}, options, handler(options));
+    }).then(function (options) {
+      var url = options.url || '';
+      if (!RE_ABSURL.test(url)) {
+        if (url && url[0] !== '/') url = '/' + url;
+        url = _this2.restful.root + _this2.path + url;
+      }
+      options.url = url;
+      return _this2.restful._request(options, _this2.overrides);
+    }).then(function (res) {
+      return _this2.restful._processHandlers(_this2.posthandlers, res);
+    });
+  },
+  get: function get(url, params) {
+    return this.request({
+      method: 'GET',
+      url: url, params: params
+    });
+  },
+  post: function post(url, body, params) {
+    return this.request({
+      method: 'POST',
+      url: url, params: params, body: body
+    });
+  },
+  put: function put(url, body, params) {
+    return this.request({
+      method: 'PUT',
+      url: url, params: params, body: body
+    });
+  },
+  remove: function remove(url, params) {
+    return this.request({
+      method: 'DELETE',
+      url: url, params: params
+    });
+  },
+  model: function model() {
+    for (var _len = arguments.length, comp = Array(_len), _key = 0; _key < _len; _key++) {
+      comp[_key] = arguments[_key];
+    }
+
+    var path = comp.filter(function (comp) {
+      return comp;
+    }).join('/');
+    if (path) path = '/' + path;
+    return new Model(this.restful, this.path + path);
+  },
+  fill: function fill(data) {
+    var path = this.path.replace(RE_PLACEHOLDER, function (match, key) {
+      var value = data[key];
+      return value ? '/' + value : match;
+    });
+    var model = new Model(this.restful, path);
+    model.prehandlers = this.prehandlers;
+    model.posthandlers = this.posthandlers;
+    return model;
+  }
+});
 
 function Restful(options) {
   var _this = this;
-  _this.root = options.root;
-  _this.headers = options.headers;
-  _this.prehandlers = options.prehandlers;
-  _this.posthandlers = options.posthandlers;
-  _this.errhandlers = options.errhandlers;
+
+  if (!(this instanceof Restful)) return new Restful(options);
+  options = options || {};
+  this.root = options.root || '';
+  this.headers = Object.assign({}, options.headers);
+  this.prehandlers = [];
+  this.posthandlers = [function (res) {
+    if (res.status > 300) throw res;
+    return res;
+  }];
+  this.errhandlers = [function (res) {
+    throw res;
+  }];
   (options.presets || []).forEach(function (name) {
-    const preset = _this['preset' + name.toUpperCase()];
+    var preset = _this['preset' + name.toUpperCase()];
     preset && preset.call(_this);
   });
-  _this.rootModel = new Model(_this, _this.root);
-  [
-    'model',
-    'request',
-    'get',
-    'post',
-    'put',
-    'remove',
-  ].forEach(function (method) {
+  this.rootModel = new Model(this, '');
+  ['model', 'request', 'get', 'post', 'put', 'remove'].forEach(function (method) {
     _this[method] = _this.rootModel[method].bind(_this.rootModel);
   });
 }
-Restful.prototype = {
-  presetJSON: function () {
-    var _this = this;
-    _.assign(_this.headers, {
+Object.assign(Restful.prototype, {
+  presetJSON: function presetJSON() {
+    Object.assign(this.headers, {
       Accept: 'application/json',
-      'Content-Type': 'application/json',
+      'Content-Type': 'application/json'
     });
-    _this.posthandlers.push(function (res) {
-      return res.data;
+    this.prehandlers.push(function (request) {
+      return {
+        body: request.body ? JSON.stringify(request.body) : null
+      };
+    });
+    this.posthandlers.push(function (res) {
+      return res.status === 204 ? null : res.json();
+    });
+    this.errhandlers.unshift(function (res) {
+      return res.json().then(function (data) {
+        return {
+          status: res.status,
+          data: data
+        };
+      });
     });
   },
-  setHeader: function (key, val) {
+  setHeader: function setHeader(key, val) {
     if (val == null) {
       delete this.headers[key];
     } else {
       this.headers[key] = val;
     }
   },
-  setHeaders: function (pairs) {
-    var _this = this;
-    _.forEach(pairs, function (value, key) {
-      _this.setHeader(key, value);
-    });
+  setHeaders: function setHeaders(pairs) {
+    for (var key in pairs) {
+      this.setHeader(key, pairs[key]);
+    }
   },
-  processHandlers: function (handlers, value, cb) {
-    if (!cb) cb = function (value, handler) {
+  _processHandlers: function _processHandlers(handlers, value, cb) {
+    if (!cb) cb = function cb(value, handler) {
       return handler(value);
     };
     return handlers.reduce(function (promise, handler) {
@@ -79,112 +208,46 @@ Restful.prototype = {
       });
     }, $q.resolve(value));
   },
-  prepareRequest: function (options, overrides) {
-    var _this = this;
+  _prepareRequest: function _prepareRequest(options, overrides) {
+    var method = options.method;
+    var url = options.url;
+    var params = options.params;
+    var body = options.body;
+    var headers = options.headers;
+
     var request = {
-      url: options.url,
-      method: options.method,
-      headers: _.assign({}, _this.headers, options.headers),
-      data: options.body,
-      params: options.params,
+      url: url,
+      method: method,
+      params: params,
+      body: body,
+      headers: Object.assign({}, this.headers, headers)
     };
-    return _this.processHandlers(
-      overrides.prehandlers || _this.prehandlers, request,
-      function (request, handler) {
-        return _.assign({}, request, handler(request));
-      }
-    );
-  },
-  _request: function (options, overrides) {
-    var _this = this;
-    return _this.prepareRequest(options, overrides)
-    .then(function (request) {
-      return $http(request);
-    })
-    .then(function (res) {
-      return _this.processHandlers(overrides.posthandlers || _this.posthandlers, res);
-    })
-    .catch(function (res) {
-      return _this.processHandlers(overrides.errhandlers || _this.errhandlers, res);
+    return this._processHandlers(overrides && overrides.prehandlers || this.prehandlers, request, function (request, handler) {
+      return Object.assign({}, request, handler(request));
     });
   },
-};
+  _fetch: function _fetch(request) {
+    return $http({
+      url: request.url,
+      method: request.method,
+      params: request.params,
+      data: request.body,
+      headers: request.headers,
+    });
+  },
+  _request: function _request(options, overrides) {
+    var _this2 = this;
 
-function Model(restful, path) {
-  var _this = this;
-  _this.restful = restful;
-  _this.path = path || '';
-  _this.prehandlers = [];
-  _this.posthandlers = [];
-  _this.overrides = {};
-}
-Model.prototype = {
-  request: function (options) {
-    var _this = this;
-    return _this.restful.processHandlers(
-      _this.prehandlers, options,
-      function (options, handler) {
-        return _.assign({}, options, handler(options));
-      }
-    )
-    .then(function (options) {
-      var url = options.url || '';
-      // Skip absolute paths
-      if (!/^[\w-]+:/.test(url)) {
-        if (url && url[0] !== '/') url = '/' + url;
-        options.url = _this.path + url;
-      }
-      return _this.restful._request(options, _this.overrides);
-    })
-    .then(function (res) {
-      return _this.restful.processHandlers(_this.posthandlers, res);
+    return this._prepareRequest(options, overrides).then(function (request) {
+      return _this2._fetch(request);
+    }).then(function (res) {
+      return _this2._processHandlers(overrides && overrides.posthandlers || _this2.posthandlers, res);
+    }).catch(function (res) {
+      return _this2._processHandlers(overrides && overrides.errhandlers || _this2.errhandlers, res);
     });
-  },
-  get: function (url, params) {
-    return this.request({
-      method: 'GET',
-      url: url,
-      params: params,
-    });
-  },
-  post: function (url, body, params) {
-    return this.request({
-      method: 'POST',
-      url: url,
-      body: body,
-      params: params,
-    });
-  },
-  put: function (url, body, params) {
-    return this.request({
-      method: 'PUT',
-      url: url,
-      body: body,
-      params: params,
-    });
-  },
-  remove: function (url, params) {
-    return this.request({
-      method: 'DELETE',
-      url: url,
-      params: params,
-    });
-  },
-  model: function () {
-    var path = [].slice.call(arguments)
-    .map(function (path) {
-      return (path || '').replace(/^\/|\/$/g, '');
-    }).filter(function (path) {
-      return path;
-    }).join('/');
-    if (path) path = '/' + path;
-    return new Model(this.restful, this.path + path);
-  },
-};
-
-// ************** Module end **************
-
-      return new Restful(options);
-    },
-  ];
+  }
 });
+
+return Restful;
+}
+}();
