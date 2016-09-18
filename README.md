@@ -52,6 +52,16 @@ angular.module('app', ['restful-ng'])
     // Submodels
     var licence = myCar.model('licence');
 
+    // Placeholders
+    var seats = myCar.model('seats', ':seatId');
+    seats.posthandlers.push(function () {
+      console.log('Got a seat');
+    });
+    var seat1 = seats.fill({seatId: 1});
+    seat1.get().then(function (data) {
+      console.log(data);
+    });
+
     // Override global interceptors
     licence.overrides.posthandlers = [function (res) {
       return res.data;
@@ -63,4 +73,4 @@ angular.module('app', ['restful-ng'])
 ]);
 ```
 
-For more usage, see documents of [restful-fetch](https://github.com/gera2ld/restful-fetch).
+For more details, see documents of [restful-fetch](https://github.com/gera2ld/restful-fetch).
