@@ -169,21 +169,8 @@ Object.assign(Restful.prototype, {
       Accept: 'application/json',
       'Content-Type': 'application/json'
     });
-    this.prehandlers.push(function (request) {
-      return {
-        body: request.body ? JSON.stringify(request.body) : null
-      };
-    });
     this.posthandlers.push(function (res) {
-      return res.status === 204 ? null : res.json();
-    });
-    this.errhandlers.unshift(function (res) {
-      return res.json().then(function (data) {
-        return {
-          status: res.status,
-          data: data
-        };
-      });
+      return res.data;
     });
   },
   setHeader: function setHeader(key, val) {
