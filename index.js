@@ -6,6 +6,14 @@
 angular.module('restful-ng', [])
 .provider('RestfulNg', RestfulNgProvider);
 
+function assign() {
+  var obj = arguments[0];
+  for (var i = 1, arg; arg = arguments[i]; i ++) {
+    for (var k in arg) obj[k] = arg[k];
+  }
+  return obj;
+}
+
 function RestfulNgProvider() {
   var options = {
     root: '',
@@ -16,7 +24,7 @@ function RestfulNgProvider() {
     presets: [],
   };
   this.config = function (userOptions) {
-    Object.assign(options, userOptions);
+    assign(options, userOptions);
   };
   this.$get = [
     '$http',
@@ -45,7 +53,7 @@ function Model(restful, path) {
   this.parameters = null;
   this._setPath(path);
 }
-Object.assign(Model.prototype, {
+assign(Model.prototype, {
   _setPath: function _setPath(path) {
     var _this = this;
 
@@ -79,7 +87,7 @@ Object.assign(Model.prototype, {
       throw new Error('Abstract model cannot be requested!');
     }
     return this.restful._processHandlers(this.prehandlers, options, function (options, handler) {
-      return Object.assign({}, options, handler(options));
+      return assign({}, options, handler(options));
     }).then(function (options) {
       var url = options.url || '';
       if (!RE_ABSURL.test(url)) {
@@ -145,7 +153,7 @@ function Restful(options) {
   if (!(this instanceof Restful)) return new Restful(options);
   options = options || {};
   this.root = options.root || '';
-  this.headers = Object.assign({}, options.headers);
+  this.headers = assign({}, options.headers);
   this.prehandlers = [];
   this.posthandlers = [function (res) {
     if (res.status > 300) throw res;
@@ -163,9 +171,9 @@ function Restful(options) {
     _this[method] = _this.rootModel[method].bind(_this.rootModel);
   });
 }
-Object.assign(Restful.prototype, {
+assign(Restful.prototype, {
   presetJSON: function presetJSON() {
-    Object.assign(this.headers, {
+    assign(this.headers, {
       Accept: 'application/json',
       'Content-Type': 'application/json'
     });
@@ -207,10 +215,10 @@ Object.assign(Restful.prototype, {
       method: method,
       params: params,
       body: body,
-      headers: Object.assign({}, this.headers, headers)
+      headers: assign({}, this.headers, headers)
     };
     return this._processHandlers(overrides && overrides.prehandlers || this.prehandlers, request, function (request, handler) {
-      return Object.assign({}, request, handler(request));
+      return assign({}, request, handler(request));
     });
   },
   _fetch: function _fetch(request) {
