@@ -2,8 +2,10 @@
   "name": "restful-ng",
   "version": "0.2.1",
   "description": "RESTful service for Angular 1.x",
-  "main": "index.js",
-  "scripts": {},
+  "main": "lib",
+  "scripts": {
+    "build": "rollup -c"
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/gera2ld/restful-ng.git"
@@ -18,5 +20,11 @@
   "bugs": {
     "url": "https://github.com/gera2ld/restful-ng/issues"
   },
-  "homepage": "https://github.com/gera2ld/restful-ng#readme"
+  "homepage": "https://github.com/gera2ld/restful-ng#readme",
+  "devDependencies": {
+    "babel-plugin-external-helpers": "^6.22.0",
+    "babel-preset-es2015": "^6.22.0",
+    "rollup": "^0.41.4",
+    "rollup-plugin-babel": "^2.7.1"
+  }
 }
