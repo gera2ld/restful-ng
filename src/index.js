@@ -24,7 +24,7 @@ angular.module('restful-ng', [])
       Restful.init(fetch, $q);
       const restful = new Restful(options);
       // $http handles with what posthandlers do
-      restful.posthandlers = [];
+      restful.posthandlers = [res => res.data];
       return restful;
     },
   ];
