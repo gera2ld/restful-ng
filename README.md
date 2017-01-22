@@ -25,7 +25,6 @@ angular.module('app', ['restful-ng'])
   function (RestfulProvider) {
     RestfulProvider.config({
       root: '/api',
-      presets: ['json'],
     });
   }
 ])
